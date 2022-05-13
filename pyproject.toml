@@ -1,11 +1,12 @@
 [tool.poetry]
-name = "hexlet-code"
+name = "page_loader"
 version = "0.1.0"
 description = ""
 authors = ["Xodarap7 <basyar86@gmail.com>"]
 
 [tool.poetry.dependencies]
 python = "^3.10"
+requests-mock = "^1.9.3"
 
 [tool.poetry.dev-dependencies]
 
