@@ -15,6 +15,7 @@ def page_to_filename(page: str) -> str:
     )
     file_name = [char if char in symbols else '-' for char in file_name]
     file_name = ''.join(file_name)
+
     return f'{file_name}.html'
 
 
