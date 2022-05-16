@@ -1,10 +1,12 @@
-from os import getcwd
+from os import getcwd, mkdir
 from os.path import abspath, exists, join
+from urllib.parse import urlparse, urlunparse
 
 import requests
+from bs4 import BeautifulSoup
 
 
-def page_to_filename(page: str) -> str:
+def link_to_filename(page: str) -> str:
     """
     :param page: address page
     :return: filename
@@ -16,32 +18,88 @@ def page_to_filename(page: str) -> str:
     file_name = [char if char in symbols else '-' for char in file_name]
     file_name = ''.join(file_name)
 
-    return f'{file_name}.html'
+    return file_name
 
 
-def download(page: str, dir_patch: str) -> str:
+def download_and_replace(attr, path, text_html, page):  # noqa: WPS210
+    """
+    Загрузка ресурсов.
+
+    Загрузка ресурсов этой страницы и сохранение их в директории path.
+    Возвращает измененный text_html.
+
+    :param page: адрес страницы
+    :param attr: кортеж с тегом и параметром
+    :param path: директория для сохранения
+    :param text_html: html-страница
+    :return: изменненная страница
+    """
+    soup = BeautifulSoup(text_html, 'html.parser')
+    # проверить куда она ведет
+    # скачать ресурс
+    # сохранить в нужно папке
+    # изменить href.
+
+    for tag in soup.find_all(attr[0]):
+        link = tag.get(attr[1])
+        if 'http' in link:
+            continue
+        ext = link.split('.')[-1]
+        file_name = f'{urlparse(page).netloc}/{link}'
+        rsc = requests.get(urlunparse([
+            urlparse(page).scheme,
+            file_name, '', '', '', '',
+        ]))
+        file_name = link_to_filename(
+            file_name[0:file_name.rfind(ext)],
+        ) + ext
+        file_name = join(path, file_name)
+        with open(file_name, 'wb') as img:
+            img.write(rsc.content)
+        tag[attr[1]] = file_name
+
+    return soup.prettify()
+
+
+def download(page: str, dir_path: str) -> str:
     """
     Load and save file
 
     :param page: page address
-    :param dir_patch: where to save
+    :param dir_path: where to save
     :return: full path
     """
-    if not dir_patch:
-        dir_patch = getcwd()
-    elif not exists(dir_patch):
-        return 'Path does not exists.'
+    if not dir_path:
+        dir_path = getcwd()
+    elif not exists(dir_path):
+        return 'Указанного пути не существует.'
 
     if 'http' not in page:
-        return 'This path isn\'t full'
+        return 'Не полный адрес сайта'
 
     resp = requests.get(page)
     if resp.status_code != requests.codes.ok:
-        return 'Page is not available.'
+        return 'Сайт не доступен.'
 
-    file_name = page_to_filename(page)
-    file_name = join(dir_patch, file_name)
-    with open(file_name, 'w') as html_file:
-        html_file.write(resp.text)
+    file_name = link_to_filename(page)
 
-    return abspath(file_name)
+    # Сохранение страницы.
+    page_name = f'{file_name}.html'
+    page_name = join(dir_path, page_name)
+    text_html = resp.text
+    with open(page_name, 'w') as html_file:
+        html_file.write(text_html)
+
+    # Поиск и сохранение ресурсов.
+    src_dir = join(dir_path, f'{file_name}_files')
+    if not exists(src_dir):
+        mkdir(src_dir)
+    attr = [
+        ('img', 'src'),
+    ]
+    text_html = download_and_replace(attr[0], src_dir, text_html, page)
+
+    with open(page_name, 'w') as html_file:
+        html_file.write(text_html)
+
+    return abspath(page_name)
