@@ -13,7 +13,7 @@ def parse_args():
         '-o',
         '--output',
         default='',
-        help='Директория для сохранения файлов',
+        help='Directory for saved files',
     )
 
     return parser.parse_args()
