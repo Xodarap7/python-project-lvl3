@@ -23,27 +23,23 @@ def link_to_filename(page: str) -> str:
 
 def download_and_replace(attr, path, text_html, page):  # noqa: WPS210
     """
-    Загрузка ресурсов.
+    Load and save resources in path
+    returm text_html with changed links
 
-    Загрузка ресурсов этой страницы и сохранение их в директории path.
-    Возвращает измененный text_html.
-
-    :param page: адрес страницы
-    :param attr: кортеж с тегом и параметром
-    :param path: директория для сохранения
-    :param text_html: html-страница
-    :return: изменненная страница
+    :param page: page address
+    :param attr: tuple
+    :param path: direcrory for save
+    :param text_html: html-page
+    :return: changed page
     """
     soup = BeautifulSoup(text_html, 'html.parser')
-    # проверить куда она ведет
-    # скачать ресурс
-    # сохранить в нужно папке
-    # изменить href.
 
     for tag in soup.find_all(attr[0]):
         link = tag.get(attr[1])
+
         if 'http' in link:
             continue
+
         ext = link.split('.')[-1]
         file_name = f'{urlparse(page).netloc}/{link}'
         rsc = requests.get(urlunparse([
@@ -54,6 +50,7 @@ def download_and_replace(attr, path, text_html, page):  # noqa: WPS210
             file_name[0:file_name.rfind(ext)],
         ) + ext
         file_name = join(path, file_name)
+
         with open(file_name, 'wb') as img:
             img.write(rsc.content)
         tag[attr[1]] = file_name
@@ -83,17 +80,17 @@ def download(page: str, dir_path: str) -> str:
 
     file_name = link_to_filename(page)
 
-    # Сохранение страницы.
     page_name = f'{file_name}.html'
     page_name = join(dir_path, page_name)
     text_html = resp.text
     with open(page_name, 'w') as html_file:
         html_file.write(text_html)
 
-    # Поиск и сохранение ресурсов.
     src_dir = join(dir_path, f'{file_name}_files')
+
     if not exists(src_dir):
         mkdir(src_dir)
+
     attr = [
         ('img', 'src'),
     ]
