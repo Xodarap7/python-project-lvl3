@@ -21,14 +21,13 @@ def link_to_filename(page: str) -> str:
     return file_name
 
 
-def download_and_replace(attr, path, text_html, page):  # noqa: WPS210
+def download_and_replace(attr: tuple, path: str, text_html: str, page: str) -> str:
     """
     Load and save resources in path
-    returm text_html with changed links
-
+    return text_html with changed links
     :param page: page address
     :param attr: tuple
-    :param path: direcrory for save
+    :param path: directory for save
     :param text_html: html-page
     :return: changed page
     """
@@ -42,7 +41,7 @@ def download_and_replace(attr, path, text_html, page):  # noqa: WPS210
 
         ext = link.split('.')[-1]
         file_name = f'{urlparse(page).netloc}/{link}'
-        rsc = requests.get(urlunparse([
+        src = requests.get(urlunparse([
             urlparse(page).scheme,
             file_name, '', '', '', '',
         ]))
@@ -52,7 +51,7 @@ def download_and_replace(attr, path, text_html, page):  # noqa: WPS210
         file_name = join(path, file_name)
 
         with open(file_name, 'wb') as img:
-            img.write(rsc.content)
+            img.write(src.content)
         tag[attr[1]] = file_name
 
     return soup.prettify()
@@ -61,7 +60,6 @@ def download_and_replace(attr, path, text_html, page):  # noqa: WPS210
 def download(page: str, dir_path: str) -> str:
     """
     Load and save file
-
     :param page: page address
     :param dir_path: where to save
     :return: full path
@@ -69,14 +67,14 @@ def download(page: str, dir_path: str) -> str:
     if not dir_path:
         dir_path = getcwd()
     elif not exists(dir_path):
-        return 'Указанного пути не существует.'
+        return 'Path is not exist'
 
     if 'http' not in page:
-        return 'Не полный адрес сайта'
+        return 'incomplete address'
 
     resp = requests.get(page)
     if resp.status_code != requests.codes.ok:
-        return 'Сайт не доступен.'
+        return 'The site is not available.'
 
     file_name = link_to_filename(page)
 
