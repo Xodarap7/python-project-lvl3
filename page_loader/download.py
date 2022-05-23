@@ -22,7 +22,11 @@ def link_to_filename(page: str) -> str:
     return file_name
 
 
-def download_and_replace(attr: tuple, path: str, text_html: str, page: str) -> str:
+def download_and_replace(
+        attr: tuple,
+        path: str,
+        text_html: str,
+        page: str) -> str:
     """
     Load and save resources in path
     return text_html with changed links
@@ -46,7 +50,7 @@ def download_and_replace(attr: tuple, path: str, text_html: str, page: str) -> s
 
         src = requests.get(f"{urlparse(page).scheme}://{file_name}")
         file_name = link_to_filename(
-            file_name[0 : file_name.rfind(ext)],
+            file_name[0: file_name.rfind(ext)],
         )
         logging.info("Download completed")
 
@@ -62,7 +66,7 @@ def download_and_replace(attr: tuple, path: str, text_html: str, page: str) -> s
     return soup.prettify()
 
 
-def download(page: str, dir_path: str) -> str:
+def download(page: str, dir_path: str) -> str:  # noqa: WPS210, C901, WPS213
     """
     Load and save file
     :param page: page address
