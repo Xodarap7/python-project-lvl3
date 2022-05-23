@@ -94,3 +94,36 @@ def test_page_loader_files(
     assert len(list_file) == 4
     assert expected == received
     assert exp_list_content == list_content
+
+
+def test_page_loader_exceptions():
+    with TemporaryDirectory() as temp_dir:
+        with pytest.raises(FileNotFoundError):
+            download('https://google.com', 'unknown folder')
+
+        with pytest.raises(ValueError):
+            download('unknown folder', temp_dir)
+
+        with pytest.raises(ConnectionError):
+            with requests_mock.Mocker() as mock:
+                mock.get('https://google.com', status_code=404)
+                download('https://google.com', temp_dir)
+
+
+def test_page_loader_link_to_filename():
+    list_link = [
+        'https://site.com',
+        'https://site.com/asdf/fer',
+        'https://site.com/asdf/fer.png',
+        '/site/asdf/fer.png',
+        'site/asdf/fer',
+    ]
+    expected_list_link = [
+        'site-com.html',
+        'site-com-asdf-fer.html',
+        'site-com-asdf-fer.png',
+        'site-asdf-fer.png',
+        'site-asdf-fer.html',
+    ]
+    for index, link in enumerate(expected_list_link):
+        assert url_to_filename(list_link[index]) == link, list_link[index]
