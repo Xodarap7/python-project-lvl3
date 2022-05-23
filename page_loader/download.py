@@ -6,6 +6,7 @@ from urllib.parse import urlparse
 
 import requests
 from bs4 import BeautifulSoup
+from progress.bar import Bar
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +50,9 @@ def download_and_replace(   # noqa: C901
     """
     soup = BeautifulSoup(text_html, "html.parser")
 
+    count = len(soup.find_all(attr[0]))
+    progress_bar = Bar(f'Tag processing {attr[0]}: ', max=count)
+
     for tag in soup.find_all(attr[0]):
         link = tag.get(attr[1])
         if link is None:
@@ -87,6 +91,9 @@ def download_and_replace(   # noqa: C901
             logging.info(f'File {file_name} saved successfully')
 
         tag[attr[1]] = file_name
+        progress_bar.next()
+
+    progress_bar.finish()
 
     return soup.prettify()
 
@@ -149,7 +156,7 @@ def download(page: str, dir_path: str) -> str:  # noqa: WPS210, C901, WPS213
         logging.info(f'Saved {tag_arg}.')
 
     try:
-        with open(page_name, 'w') as html_file:  # noqa: WPS440
+        with open(page_name, 'w') as html_file:
             html_file.write(text_html)
     except OSError:
         logger.error('Failed to save change to resource links.')
