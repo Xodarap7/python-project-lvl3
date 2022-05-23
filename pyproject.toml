@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "hexlet_code"
-version = "0.2.0"
+version = "0.4.0"
 description = ""
 authors = ["Xodarap7 <basyar86@gmail.com>"]
 repository = "https://github.com/Xodarap7/python-project-lvl3"
@@ -12,10 +12,10 @@ packages = [
 python = "^3.10"
 requests-mock = "^1.9.3"
 beautifulsoup4 = "^4.11.1"
-pytest = "^7.1.2"
 
 [tool.poetry.dev-dependencies]
 flake8 = "^4.0.1"
+pytest = "^7.1.2"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
