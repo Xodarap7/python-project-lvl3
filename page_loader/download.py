@@ -1,166 +1,80 @@
 import logging
-import sys
-from os import getcwd, mkdir
-from os.path import abspath, exists, join
+from os import getcwd
+from os.path import abspath, join
 from urllib.parse import urlparse
 
 import requests
-from bs4 import BeautifulSoup
 from progress.bar import Bar
 
-logger = logging.getLogger(__name__)
-
-err_handler = logging.StreamHandler()
-err_handler.setLevel(logging.ERROR)
-logger.addHandler(err_handler)
-
-stdin_handler = logging.StreamHandler(sys.stdin)
-stdin_handler.setLevel(logging.INFO)
-logger.addHandler(stdin_handler)
+from page_loader.fs import mk_dir, save_file
+from page_loader.html import url_to_filename, prepare_page
 
 
-def link_to_filename(page: str) -> str:
+def get(url):
     """
-    :param page: address page
-    :return: filename
+    Load file
+
+    :param url: file link
+    :return: file content
     """
-    file_name = page.split("//")[-1]
-    symbols = set(
-        "[qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM1234567890]",
-    )
-    file_name = [char if char in symbols else "-" for char in file_name]
-    file_name = "".join(file_name)
+    if not urlparse(url).netloc:
+        raise ValueError('Incomplete address.')
 
-    return file_name
+    try:
+        resp = requests.get(url)
+    except requests.RequestException as exc:
+        logging.error(f'Connection error {exc}')
+        raise ConnectionError(f'Connection error {exc}')
+    if resp.status_code != requests.codes.ok:
+        logging.error(f'Link is not available. {resp.status_code}')
+        raise ConnectionError(f'Link is not available. {resp.status_code}')
+    logging.info(f'File {url} received')
+    conn_type = resp.headers.get('Content-Type')
+    if conn_type and 'text/html' in conn_type:
+        resp.encoding = 'utf-8'
+        return resp.text
+    else:
+        return resp.content
 
 
-def download_and_replace(   # noqa: C901
-        attr: tuple,
-        path: str,
-        text_html: str,
-        page: str) -> str:
+def download(url, directory):  # noqa: WPS210, C901, WPS213
     """
-    Load and save resources in path
-    return text_html with changed links
-    :param page: page address
-    :param attr: tuple
-    :param path: directory for save
-    :param text_html: html-page
-    :return: changed page
+    Load and save file
+
+    :param url: Page address
+    :param directory: Directory for save
+    :return: Full path for saved page
     """
-    soup = BeautifulSoup(text_html, "html.parser")
+    if not directory:
+        directory = getcwd()
 
-    count = len(soup.find_all(attr[0]))
-    progress_bar = Bar(f'Tag processing {attr[0]}: ', max=count)
+    page_name = url_to_filename(url)
+    page_name = join(directory, page_name)
+    res_dir = f'{page_name[:-5]}_files'
 
-    for tag in soup.find_all(attr[0]):
-        link = tag.get(attr[1])
-        if link is None:
-            continue
-        if "http" in link:
-            continue
+    text_html = get(url)
 
-        ext = link.split('.')[-1]
-        file_name = f'{urlparse(page).netloc}/{link}'
+    urls, text_html = prepare_page(url, text_html, res_dir)
 
+    save_file(page_name, text_html)
+
+    mk_dir(res_dir)
+    progress_bar = Bar('Saving: ', max=len(urls))
+    for url in urls:
         try:
-            rsc = requests.get(f'{urlparse(page).scheme}://{file_name}')
-        except requests.RequestException:
-            logger.error(f'File {file_name} is not available')
+            res = get(url['link'])
+            save_file(join(directory, url['path']), res)
+        except ConnectionError as exc:
+            logging.debug(f'Resource {url} is not loaded {exc}')
             continue
-        if rsc.status_code != requests.codes.ok:
-            logger.error(
-                f"""Returned error code {rsc.status_code}.
-                File {file_name} is not available""",
-            )
-            continue
-        file_name = link_to_filename(
-            file_name[0:file_name.rfind(ext)],
-        )
-        logging.info(f'File {file_name} was received')
-
-        file_name = f'{file_name}.{ext}'
-        file_name = join(path, file_name)
-
-        try:
-            with open(file_name, 'wb') as img:
-                img.write(rsc.content)
         except OSError:
-            logging.info(f'Failed to save file {file_name}.')
-        else:
-            logging.info(f'File {file_name} saved successfully')
+            logging.info(f'Resource {url} is not saved')
+            progress_bar.next()
+            continue
+        logging.info(f'Resource {url} saved successfully')
 
-        tag[attr[1]] = file_name
         progress_bar.next()
 
     progress_bar.finish()
-
-    return soup.prettify()
-
-
-def download(page: str, dir_path: str) -> str:  # noqa: WPS210, C901, WPS213
-    """
-    Load and save file
-    :param page: page address
-    :param dir_path: where to save
-    :return: full path
-    """
-    if not dir_path:
-        dir_path = getcwd()
-    elif not exists(dir_path):
-        logger.error(f'The directory {dir_path} does not exist.')
-        raise FileNotFoundError(f'The directory {dir_path} does not exist.')
-    logging.info('Folder existence check passed.')
-
-    if "http" not in page:
-        logger.error('Incomplete site address.')
-        raise ValueError('Incomplete site address.')
-    logging.info("Page address verification passed")
-
-    try:
-        resp = requests.get(page)
-    except requests.RequestException:
-        raise ConnectionError('Connection error')
-    if resp.status_code != requests.codes.ok:
-        logger.error('The site is not available.')
-        raise ConnectionError('The site is not available.')
-    logging.info('Website accessibility check passed.')
-
-    file_name = link_to_filename(page)
-
-    page_name = f'{file_name}.html'
-    page_name = join(dir_path, page_name)
-    text_html = resp.text
-    try:
-        with open(page_name, 'w') as html_file:
-            html_file.write(text_html)
-    except OSError:
-        logger.error('Failed to save site.')
-        raise OSError('Failed to save site.')
-    logging.info('The site page has been saved.')
-
-    src_dir = join(dir_path, f'{file_name}_files')
-    if not exists(src_dir):
-        try:
-            mkdir(src_dir)
-        except OSError:
-            logger.error('Failed to create resource folder.')
-            raise OSError('Failed to create resource folder.')
-    attr = [
-        ('img', 'src'),
-        ('link', 'href'),
-        ('script', 'src'),
-    ]
-    for tag_arg in attr:
-        text_html = download_and_replace(tag_arg, src_dir, text_html, page)
-        logging.info(f'Saved {tag_arg}.')
-
-    try:
-        with open(page_name, 'w') as html_file:
-            html_file.write(text_html)
-    except OSError:
-        logger.error('Failed to save change to resource links.')
-        raise OSError('Failed to save change to resource links.')
-    logging.info('Links to page resources have been changed.')
 
     return abspath(page_name)

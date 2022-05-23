@@ -16,16 +16,9 @@ install:
 
 start:
 	rm -rf site/*
-	poetry run python3 -m page_loader.scripts.loader -o site 'https://www.google.com'
+	poetry run python3 -m page_loader.scripts.loader -o site 'https://www.rydlab.ru'
 
-start_log:
-	rm -rf site/*
-	export PAGE_LOADER_LOG='info' &&\
-	poetry run python3 -m page_loader.scripts.loader -o site 'https://www.google.com'
-	unset PAGE_LOADER_LOG
-
-start_err:
-	rm -rf site/*
-	export PAGE_LOADER_LOG='info' &&\
-	poetry run python3 -m page_loader.scripts.loader -o site 'https://www.sdgsagd.com'
-	unset PAGE_LOADER_LOG
+test_log:
+	poetry run pytest -o log_cli=true\
+ 	--log-cli-level=debug\
+ 	page_loader tests
