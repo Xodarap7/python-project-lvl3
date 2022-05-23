@@ -10,7 +10,7 @@ from page_loader.save_in_fs import mk_dir, save_file
 from page_loader.html import url_to_filename, prepare_page
 
 
-def get(url):
+def get(url: str) -> bytes or str:
     """
     Load file
 
@@ -37,7 +37,7 @@ def get(url):
         return resp.content
 
 
-def download(url, directory):  # noqa: WPS210, C901, WPS213
+def download(url: str, directory: str) -> str:  # noqa: WPS210, C901, WPS213
     """
     Load and save file
 
