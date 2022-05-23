@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 import requests
 from progress.bar import Bar
 
-from page_loader.fs import mk_dir, save_file
+from page_loader.save_in_fs import mk_dir, save_file
 from page_loader.html import url_to_filename, prepare_page
 
 

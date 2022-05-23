@@ -1,4 +1,3 @@
-"""Модуль для работы с ресурсами старницы."""
 import logging
 import string
 from os.path import basename
@@ -9,7 +8,7 @@ from bs4 import BeautifulSoup
 
 def url_to_filename(link: str) -> str:
     """
-    :param page: address page
+    :param link: address page
     :return: filename
     """
     netloc = urlparse(link).netloc

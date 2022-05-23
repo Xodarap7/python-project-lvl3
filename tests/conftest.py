@@ -13,7 +13,7 @@ def text_html():
 
 @pytest.fixture()
 def img1_content():
-    with open('tests/fixtures/img/python.jpeg', 'rb') as img_fle:
+    with open('tests/fixtures/img/1.jpeg', 'rb') as img_fle:
         content = img_fle.read()
     return content
 
