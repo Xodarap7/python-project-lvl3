@@ -1,10 +1,21 @@
 import logging
+import sys
 from os import getcwd, mkdir
 from os.path import abspath, exists, join
 from urllib.parse import urlparse
 
 import requests
 from bs4 import BeautifulSoup
+
+logger = logging.getLogger(__name__)
+
+err_handler = logging.StreamHandler()
+err_handler.setLevel(logging.ERROR)
+logger.addHandler(err_handler)
+
+stdin_handler = logging.StreamHandler(sys.stdin)
+stdin_handler.setLevel(logging.INFO)
+logger.addHandler(stdin_handler)
 
 
 def link_to_filename(page: str) -> str:
@@ -22,7 +33,7 @@ def link_to_filename(page: str) -> str:
     return file_name
 
 
-def download_and_replace(
+def download_and_replace(   # noqa: C901
         attr: tuple,
         path: str,
         text_html: str,
@@ -45,21 +56,35 @@ def download_and_replace(
         if "http" in link:
             continue
 
-        ext = link.split(".")[-1]
-        file_name = f"{urlparse(page).netloc}/{link}"
+        ext = link.split('.')[-1]
+        file_name = f'{urlparse(page).netloc}/{link}'
 
-        src = requests.get(f"{urlparse(page).scheme}://{file_name}")
+        try:
+            rsc = requests.get(f'{urlparse(page).scheme}://{file_name}')
+        except requests.RequestException:
+            logger.error(f'File {file_name} is not available')
+            continue
+        if rsc.status_code != requests.codes.ok:
+            logger.error(
+                f"""Returned error code {rsc.status_code}.
+                File {file_name} is not available""",
+            )
+            continue
         file_name = link_to_filename(
-            file_name[0: file_name.rfind(ext)],
+            file_name[0:file_name.rfind(ext)],
         )
-        logging.info("Download completed")
+        logging.info(f'File {file_name} was received')
 
-        file_name = f"{file_name}.{ext}"
+        file_name = f'{file_name}.{ext}'
         file_name = join(path, file_name)
 
-        with open(file_name, "wb") as img:
-            img.write(src.content)
-        logging.info("Saving to file completed")
+        try:
+            with open(file_name, 'wb') as img:
+                img.write(rsc.content)
+        except OSError:
+            logging.info(f'Failed to save file {file_name}.')
+        else:
+            logging.info(f'File {file_name} saved successfully')
 
         tag[attr[1]] = file_name
 
@@ -76,41 +101,59 @@ def download(page: str, dir_path: str) -> str:  # noqa: WPS210, C901, WPS213
     if not dir_path:
         dir_path = getcwd()
     elif not exists(dir_path):
-        return "Path is not exist"
-    logging.info("Checking if a directory exists")
+        logger.error(f'The directory {dir_path} does not exist.')
+        raise FileNotFoundError(f'The directory {dir_path} does not exist.')
+    logging.info('Folder existence check passed.')
 
     if "http" not in page:
-        return "incomplete address"
+        logger.error('Incomplete site address.')
+        raise ValueError('Incomplete site address.')
     logging.info("Page address verification passed")
 
-    resp = requests.get(page)
+    try:
+        resp = requests.get(page)
+    except requests.RequestException:
+        raise ConnectionError('Connection error')
     if resp.status_code != requests.codes.ok:
-        return "The site is not available."
-    logging.info("Page accessibility check passed")
+        logger.error('The site is not available.')
+        raise ConnectionError('The site is not available.')
+    logging.info('Website accessibility check passed.')
 
     file_name = link_to_filename(page)
 
-    page_name = f"{file_name}.html"
+    page_name = f'{file_name}.html'
     page_name = join(dir_path, page_name)
     text_html = resp.text
-    with open(page_name, "w") as html_file:
-        html_file.write(text_html)
-    logging.info("Page was saved")
+    try:
+        with open(page_name, 'w') as html_file:
+            html_file.write(text_html)
+    except OSError:
+        logger.error('Failed to save site.')
+        raise OSError('Failed to save site.')
+    logging.info('The site page has been saved.')
 
-    src_dir = join(dir_path, f"{file_name}_files")
+    src_dir = join(dir_path, f'{file_name}_files')
     if not exists(src_dir):
-        mkdir(src_dir)
+        try:
+            mkdir(src_dir)
+        except OSError:
+            logger.error('Failed to create resource folder.')
+            raise OSError('Failed to create resource folder.')
     attr = [
-        ("img", "src"),
-        ("link", "href"),
-        ("script", "src"),
+        ('img', 'src'),
+        ('link', 'href'),
+        ('script', 'src'),
     ]
     for tag_arg in attr:
         text_html = download_and_replace(tag_arg, src_dir, text_html, page)
-        logging.info(f"Saved {tag_arg}.")
+        logging.info(f'Saved {tag_arg}.')
 
-    with open(page_name, "w") as html_file:
-        html_file.write(text_html)
-    logging.info("Page was changed.")
+    try:
+        with open(page_name, 'w') as html_file:  # noqa: WPS440
+            html_file.write(text_html)
+    except OSError:
+        logger.error('Failed to save change to resource links.')
+        raise OSError('Failed to save change to resource links.')
+    logging.info('Links to page resources have been changed.')
 
     return abspath(page_name)

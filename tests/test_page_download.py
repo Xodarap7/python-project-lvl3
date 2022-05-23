@@ -1,3 +1,4 @@
+import pytest
 import os
 from os.path import exists, join
 from tempfile import TemporaryDirectory
@@ -46,3 +47,17 @@ def test_function_download():
     assert file_indicator
     assert correct_file_name == current_file_name
     assert len(list_file) == 3
+
+
+def test_exception():
+    with TemporaryDirectory() as temp_dir:
+        with pytest.raises(FileNotFoundError):
+            download('Unknown address', 'Unknown directory')
+
+        with pytest.raises(ValueError):
+            download('Unknown address', temp_dir)
+
+        with pytest.raises(ConnectionError):
+            with requests_mock.Mocker() as mock:
+                mock.get('https://rydlab.ru', status_code=404)
+                download('https://rydlab.ru', temp_dir)
